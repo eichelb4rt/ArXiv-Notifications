@@ -150,7 +150,7 @@ def make_summaries(download_dir:str, preferences:list, query_llm:callable = quer
     else:
         query = ''
     query += "What is the main idea and novelty of the following paper?\n"
-    query += "Please resume in a brief and concise manner in at most two paragraphs.\n"
+    query += "Please resume in a brief and concise manner in one paragraph.\n"
     query += "Do not repeat the title and the authors of the paper.\n"
     if len(preferences) > 0:
         query += "Keep in mind what might be interesting for the researcher regarding his preferences.\n"
@@ -179,6 +179,12 @@ def create_summary_pdf(articles:dict, summaries:dict, keywords:list, summary_dir
         path to file
     '''
     
+    # sort by date
+    filenames = list(summaries.keys())
+    dates = [articles[filename[:-4]]['date'] for filename in filenames]
+    filenames = [x for _, x in sorted(zip(dates, filenames))]
+
+
     replace_dict = {
         '𝜖' : 'epsilon'
     }
@@ -189,14 +195,18 @@ def create_summary_pdf(articles:dict, summaries:dict, keywords:list, summary_dir
     
     title = 'New Papers for'
     for kw in keywords:
-        title += f' {kw},'
+        line_str = '('
+        for tmp in kw:
+            line_str += f' {tmp} AND'
+        line_str = line_str[:-4] + ' )'
+        title += f' {line_str},'
     title = title[:-1]
     
     doc.preamble.append(Command("title", title))
     doc.preamble.append(Command("date", NoEscape(r"\today")))
     doc.append(NoEscape(r"\maketitle"))
     
-    for filename in summaries:
+    for filename in filenames:
         paper_title = latexencode.unicode_to_latex(articles[filename[:-4]]['title'])
         splits = paper_title.split('\\$')
         
@@ -215,10 +225,15 @@ def create_summary_pdf(articles:dict, summaries:dict, keywords:list, summary_dir
             doc.append(latexencode.unicode_to_latex(text))
             #doc.append(NoEscape(outps[filename]))
             doc.append(NewLine())
-    
+            tmp = datetime(*articles[filename[:-4]]['date'][:6])
+            tmp = f'{tmp:%Y-%m-%d}'
+            date_str = f"Date: {tmp}, "
+            doc.append(date_str)
             link = escape_latex(articles[filename[:-4]]['link'])
             link_str = f"Link: \\url{{{link}}}"
             doc.append(NoEscape(link_str))
+
+
     
     summary_name = f'summary_{timestamp:%Y_%m_%d}'
     doc.generate_pdf(os.path.join(summary_dir, summary_name), clean_tex=False, compiler='pdfLaTeX')
@@ -247,7 +262,11 @@ def send_emails(emails:list, smtp_server:str, smtp_port:str, smtp_login:str, smt
     subject = "ArXiV update"
     body = f"We found {n_papers} new papers regarding the following topics:\n"
     for kw in keywords:
-        body += f'- {kw}\n'
+        line_str = '- '
+        for tmp in kw:
+            line_str += f'{tmp}, '
+        line_str = line_str[:-2]
+        body += f'{line_str}\n'
     body += f'Time period: {last_date} until {timestamp:%Y-%m-%d}\n'
     body += f"See the summary in the attachment."
     
@@ -318,7 +337,7 @@ if __name__ == '__main__':
         except:
             print('Error occured, but PDF was generated nonetheless')
             summary_name = f'summary_{timestamp:%Y_%m_%d}'
-            for file in os.path.listdir(summary_dir):
+            for file in os.listdir(summary_dir):
                 if not file.endswith('pdf'):
                     p = os.path.join(summary_dir, file)
                     os.remove(p)

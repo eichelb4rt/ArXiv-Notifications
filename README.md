@@ -2,6 +2,10 @@
 This script is meant to search for new papers, summarize them using an LLM and send out a pdf file via email.
 We further provide functionality to let it run once a day on windows.
 
+## LLM
+In this version, we are using the free [Mistral](https://console.mistral.ai/) model.
+If you want to change it, simply provide a different function to the `make_summaries` function.
+
 ## Requirements
 ```
 conda create --name arxiv_update

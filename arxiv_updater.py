@@ -104,7 +104,7 @@ def make_summaries(download_dir, preferences, query_llm = query_mistral):
     else:
         query = ''
     query += "What is the main idea and novelty of the following paper?\n"
-    query += "Please resume in a brief and concise manner in one paragraph.\n"
+    query += "Please resume in a brief and concise manner in at most two paragraphs.\n"
     query += "Do not repeat the title and the authors of the paper.\n"
     if len(preferences) > 0:
         query += "Keep in mind what might be interesting for the researcher regarding his preferences.\n"
@@ -117,7 +117,6 @@ def make_summaries(download_dir, preferences, query_llm = query_mistral):
         md_text = pymupdf4llm.to_markdown(filepath, pages = range(min(max_pages, len(doc))), show_progress= False)
         outps[filename] = query_llm(query + md_text)
     return outps
-
 
 def create_summary_pdf(articles, summaries, keywords, summary_dir, timestamp):
     replace_dict = {
@@ -171,7 +170,6 @@ def create_summary_pdf(articles, summaries, keywords, summary_dir, timestamp):
     path_to_file = os.path.join(summary_dir, f'{summary_name}.pdf')
     return path_to_file
 
-
 def send_emails(emails, smtp_server, smtp_port, smtp_login, smtp_pw, path_to_file, keywords, last_date, timestamp, n_papers):
     subject = "ArXiV update"
     body = f"We found {n_papers} new papers regarding the following topics:\n"
@@ -201,10 +199,9 @@ def send_emails(emails, smtp_server, smtp_port, smtp_login, smtp_pw, path_to_fil
     
 
 if __name__ == '__main__':
-
-
     # read from config file
-    with open('config.json') as f:
+    cwd = os.path.dirname(__file__)
+    with open(os.path.join(cwd, 'config.json')) as f:
         config = json.load(f)
     keywords = config['keywords']
     preferences = config['preferences']
@@ -214,8 +211,8 @@ if __name__ == '__main__':
     smtp_port = config['smtp_port']
     smtp_login = config['smtp_login']
     smtp_pw = config['smtp_pw']
-    download_dir = config['download_dir']
-    summary_dir = config['summary_dir']
+    download_dir = os.path.join(cwd, config['download_dir'])
+    summary_dir = os.path.join(cwd, config['summary_dir'])
     max_results = config['max_results']
     max_pages = config['max_pages']
     ###################################
@@ -261,6 +258,6 @@ if __name__ == '__main__':
 
     print('Updating config...', end='')
     config['last_date'] = f'{timestamp:%Y-%m-%d}'
-    with open('config.json','w') as outfile:
+    with open(os.path.join(cwd, 'config.json'),'w') as outfile:
         json.dump(config, outfile, indent = '\t')
     print('done.')

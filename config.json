@@ -1,0 +1,21 @@
+{
+	"keywords": [
+		"Symbolic Regression"
+	],
+	"preferences": [
+		"Interested in algorithms rather than applications"
+	],
+	"emails": [
+		"recepient1@email.com",
+		"recepient2@email.com"
+	],
+	"last_date": "2024-11-01",
+	"smtp_server": "smtp.provider.com",
+	"smtp_port": 20,
+	"smtp_login": "login@provider.com",
+	"smtp_pw": "secretpw",
+	"download_dir": "papers",
+	"summary_dir": "summaries",
+	"max_results": 1000,
+	"max_pages": 3
+}

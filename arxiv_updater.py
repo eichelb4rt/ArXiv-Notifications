@@ -2,6 +2,7 @@
 from datetime import date, datetime
 import os
 import json
+from tqdm import tqdm
 
 # Arxiv API
 import urllib.request
@@ -150,7 +151,7 @@ def make_summaries(download_dir:str, preferences:list, query_llm:callable = quer
     
     
     outps = {}
-    for filename in os.listdir(download_dir):
+    for filename in tqdm(os.listdir(download_dir)):
         filepath = os.path.join(download_dir, f'{filename}')
         doc = pymupdf.open(filepath)
         md_text = pymupdf4llm.to_markdown(filepath, pages = range(min(max_pages, len(doc))), show_progress= False)
@@ -216,10 +217,7 @@ def create_summary_pdf(articles:dict, summaries:dict, keywords:list, summary_dir
     summary_name = f'summary_{timestamp:%Y_%m_%d}'
     doc.generate_pdf(os.path.join(summary_dir, summary_name), clean_tex=False, compiler='pdfLaTeX')
     
-    for fileend in ['.aux', '.log', '.tex']:
-        p = os.path.join(summary_dir, f'{summary_name}{fileend}')
-        if os.path.exists(p):
-            os.remove(p)
+    
     path_to_file = os.path.join(summary_dir, f'{summary_name}.pdf')
     return path_to_file
 
@@ -292,7 +290,7 @@ if __name__ == '__main__':
     if not os.path.exists(summary_dir):
         os.makedirs(summary_dir)
 
-    print('Scraping ArXiV...', end='')
+    print('Scraping ArXiV...')
     articles = query_arxiv(keywords, last_date, max_results)
     print('done.')
     timestamp = datetime.now()
@@ -300,23 +298,33 @@ if __name__ == '__main__':
     if len(articles) > 0:
         print(f'Found {len(articles)} new articles.')
         
-        print('Downloading PDFs...', end='')
+        print('Downloading PDFs...')
         download_articles(articles, download_dir)
         print('done.')
 
-        print('Using LLM to make summaries...', end='')
+        print('Using LLM to make summaries...')
         summaries = make_summaries(download_dir, preferences)
         print('done.')
 
-        print('Creating PDF...', end='')
-        path_to_file = create_summary_pdf(articles, summaries, keywords, summary_dir, timestamp)
+        print('Creating PDF...')
+        try:
+            path_to_file = create_summary_pdf(articles, summaries, keywords, summary_dir, timestamp)
+        except:
+            print('Error occured, but PDF was generated nonetheless')
+            summary_name = f'summary_{timestamp:%Y_%m_%d}'
+            for file in os.path.listdir(summary_dir):
+                if not file.endswith('pdf'):
+                    p = os.path.join(summary_dir, file)
+                    os.remove(p)
+            path_to_file = os.path.join(summary_dir, f'{summary_name}.pdf')
+            assert os.path.exists(path_to_file)
         print(f'done.\nPDF located at {path_to_file}')
 
-        print('Sending emails...', end='')
+        print('Sending emails...')
         send_emails(emails, smtp_server, smtp_port, smtp_login, smtp_pw, path_to_file, keywords, last_date, timestamp, len(articles))
         print('done.')
 
-        print('Deleting articles...', end='')
+        print('Deleting articles...')
         for file in os.listdir(download_dir):
             os.remove(os.path.join(download_dir, file))
         print('done.')
@@ -325,7 +333,7 @@ if __name__ == '__main__':
     else:
         print('No new articles found.')
 
-    print('Updating config...', end='')
+    print('Updating config...')
     config['last_date'] = f'{timestamp:%Y-%m-%d}'
     with open(os.path.join(cwd, 'config.json'),'w') as outfile:
         json.dump(config, outfile, indent = '\t')

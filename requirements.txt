@@ -1,0 +1,5 @@
+pymupdf4llm
+pymupdf
+pylatex
+pylatexenc
+mistralai

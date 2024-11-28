@@ -1,12 +1,11 @@
 # general
 from datetime import date, datetime
-import time
 import os
 import json
 
 # Arxiv API
-import requests
 import urllib.request
+import urllib.parse
 import feedparser
 
 # scrape pdf and feed to LLM
@@ -15,10 +14,9 @@ import pymupdf4llm
 import pymupdf
 
 # create summary pdf
-from pylatex import Command, Document, Section, Subsection, Description, Hyperref, Package,  NewLine
+from pylatex import Command, Document, Section, Package,  NewLine
 from pylatex.utils import NoEscape, escape_latex
 from pylatexenc import latexencode
-import urllib.parse
 
 # sending mail
 import smtplib

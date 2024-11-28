@@ -35,7 +35,17 @@ CS_CLASSES = [
     ]
 ]
 
-def query_mistral(query):
+def query_mistral(query:str) -> str:
+    '''
+    Queries Mistral model.
+
+    @Params:
+        query... string representing the query
+
+    @Returns:
+        answer string
+    '''
+
     model = "mistral-large-latest"
     api_key = os.environ["MISTRAL_API_KEY"]
     client = Mistral(api_key=api_key)
@@ -53,7 +63,18 @@ def query_mistral(query):
     outp = chat_response.choices[0].message.content
     return outp
 
-def query_arxiv(keywords, last_date, max_results):
+def query_arxiv(keywords : list, last_date : str, max_results : int) -> dict:
+    '''
+    First step of pipeline: Search for new papers on ArXiV.
+
+    @Params:
+        keywords... List of strings representing keywords of interest
+        last_date... start date for search
+        max_results... maximum results for each class (will keep only the newest ones)
+
+    @Returns:
+        dictionary with key = paper name, value = details to paper
+    '''
     start_date = date.fromisoformat(last_date)
     kw_query = '%28'
     for kws in keywords:
@@ -88,13 +109,33 @@ def query_arxiv(keywords, last_date, max_results):
                     articles[id] = article_info
     return articles
 
-def download_articles(articles, download_dir):
+def download_articles(articles: dict, download_dir:str):
+    '''
+    Second step of pipeline: download the papers.
+
+    @Params:
+        articles... result dictionary from query_arxiv function
+        download_dir... path where to download to
+    '''
+
     for filename in articles:
         filepath = os.path.join(download_dir, f'{filename}.pdf')
         if not os.path.exists(filepath):
             urllib.request.urlretrieve(articles[filename]['link'].replace('abs', 'pdf'), filepath)
 
-def make_summaries(download_dir, preferences, query_llm = query_mistral):
+def make_summaries(download_dir:str, preferences:list, query_llm:callable = query_mistral) -> dict:
+    '''
+    Third step of pipeline: scrape text from pdf and use LLM to summarize.
+
+    @Params:
+        download_dir...  path where papers have been downloaded
+        preferences... list of strings specifying users preferences
+        query_llm... function, that takes a query string and provides an answer string
+
+    @Returns:
+        dictionary with key = paper name, value = summary
+    '''
+
     if len(preferences) > 0:
         query = "You are talking to a researcher with the following preferences:\n"
         for pref in preferences:
@@ -116,7 +157,21 @@ def make_summaries(download_dir, preferences, query_llm = query_mistral):
         outps[filename] = query_llm(query + md_text)
     return outps
 
-def create_summary_pdf(articles, summaries, keywords, summary_dir, timestamp):
+def create_summary_pdf(articles:dict, summaries:dict, keywords:list, summary_dir:str, timestamp:datetime.date) -> str:
+    '''
+    Fourth step of pipeline:Creates a single pdf as summary.
+
+    @Params:
+        articles... result from query_arxiv function with details about papers
+        summaries... result from make_summaries function with summaries for each paper
+        keywords... list of keywords that we were interested in
+        summary_dir... directory where to save summary file
+        timestamp... for naming the file
+
+    @Returns:
+        path to file
+    '''
+    
     replace_dict = {
         '𝜖' : 'epsilon'
     }
@@ -168,7 +223,23 @@ def create_summary_pdf(articles, summaries, keywords, summary_dir, timestamp):
     path_to_file = os.path.join(summary_dir, f'{summary_name}.pdf')
     return path_to_file
 
-def send_emails(emails, smtp_server, smtp_port, smtp_login, smtp_pw, path_to_file, keywords, last_date, timestamp, n_papers):
+def send_emails(emails:list, smtp_server:str, smtp_port:str, smtp_login:str, smtp_pw:str, path_to_file:str, keywords:list, last_date:str, timestamp:datetime.date, n_papers:int):
+    '''
+    Last step of pipeline: sends email with summary results.
+
+    @Params:
+        emails... list of emails to send to
+        smtp_server... provider of smtp
+        smtp_port... port of smtp
+        smtp_login... account from where to send
+        smtp_pw... password for account
+        path_to_file... path to file for attachment
+        keywords... list of keywords that were used for search
+        last_date... start date for search
+        timestamp... end date for search
+        n_papers... how many papers were found
+    '''
+    
     subject = "ArXiV update"
     body = f"We found {n_papers} new papers regarding the following topics:\n"
     for kw in keywords:

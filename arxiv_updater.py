@@ -181,7 +181,7 @@ def create_summary_pdf(articles:dict, summaries:dict, keywords:list, summary_dir
     
     # sort by date
     filenames = list(summaries.keys())
-    dates = [articles[filename[:-4]]['date'] for filename in filenames]
+    dates = [f"{datetime(*articles[filename[:-4]]['date'][:6]):%Y-%m-%d}" for filename in filenames]
     filenames = [x for _, x in sorted(zip(dates, filenames))]
 
 
@@ -225,8 +225,7 @@ def create_summary_pdf(articles:dict, summaries:dict, keywords:list, summary_dir
             doc.append(latexencode.unicode_to_latex(text))
             #doc.append(NoEscape(outps[filename]))
             doc.append(NewLine())
-            tmp = datetime(*articles[filename[:-4]]['date'][:6])
-            tmp = f'{tmp:%Y-%m-%d}'
+            tmp = f"{datetime(*articles[filename[:-4]]['date'][:6]):%Y-%m-%d}"
             date_str = f"Date: {tmp}, "
             doc.append(date_str)
             link = escape_latex(articles[filename[:-4]]['link'])

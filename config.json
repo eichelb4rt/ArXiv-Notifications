@@ -1,6 +1,7 @@
 {
 	"keywords": [
-		"Symbolic Regression"
+		["Symbolic Regression", "Transformers"],
+		["Tensor Networks"]
 	],
 	"preferences": [
 		"Interested in algorithms rather than applications"

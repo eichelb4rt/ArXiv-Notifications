@@ -19,7 +19,7 @@ pip install -r requirements.txt
 
 
 You can set everything you need in the `config.json` file:
-- `keywords`: Keywords to search on ArXiV.
+- `keywords`: Keywords to search on ArXiV. The lists represent a disjunktive normal form (DNF). That is, the lists are concatenated with OR, the entries of each list with AND.
 - `preferences`: Your personal preferences for creating the summaries. This will be added to the LLM prompt.
 - `emails`: To whom the emails will be sent.
 - `last_date`: Start date for search (up to today, format YYYY-MM-DD)

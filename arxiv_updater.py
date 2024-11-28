@@ -79,15 +79,21 @@ def query_arxiv(keywords : list, last_date : str, max_results : int) -> dict:
     start_date = date.fromisoformat(last_date)
     kw_query = '%28'
     for kws in keywords:
-        tmp = 'ti:%22'
-        for kw in kws.split(' '):
-            tmp += kw.lower() + '+'
-        tmp = tmp[:-1]
-        tmp += '%22'
-        kw_query += f'{tmp}+OR+'
+        kw_str = '%28'
+        for part_kws in kws:
+            tmp = 'abs:%22'
+            for kw in part_kws.split(' '):
+                tmp += kw.lower() + '+'
+            tmp = tmp[:-1]
+            tmp += '%22'
+            kw_str += f'{tmp}+AND+'
+        kw_str = kw_str[:-5]
+        
+        kw_query += f'{kw_str}%29+OR+'
     kw_query = kw_query[:-4]
     kw_query += '%29'
 
+    
     articles = {}
     counter = 0
     for cat in CS_CLASSES:

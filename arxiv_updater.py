@@ -110,7 +110,7 @@ def query_arxiv(keywords : list, last_date : str, max_results : int) -> dict:
                         'link' : article['link'],
                         'abstract' : article['summary'].replace('\n', '')
                     }
-                    id = article_info['title'].replace(' ', '_').replace(':', '_').replace('-', '_').replace('__', '_').replace('___', '_').lower()
+                    id = article_info['title'].replace(' ', '_').replace(':', '_').replace('-', '_').replace('__', '_').replace('___', '_').replace('?', '').replace('!', '').lower()
                     if id not in articles:
                         counter += 1
                     articles[id] = article_info
@@ -125,10 +125,16 @@ def download_articles(articles: dict, download_dir:str):
         download_dir... path where to download to
     '''
 
+    del_list = []
     for filename in articles:
         filepath = os.path.join(download_dir, f'{filename}.pdf')
         if not os.path.exists(filepath):
-            urllib.request.urlretrieve(articles[filename]['link'].replace('abs', 'pdf'), filepath)
+            try:
+                urllib.request.urlretrieve(articles[filename]['link'].replace('abs', 'pdf'), filepath)
+            except OSError:
+                del_list.append(filename)
+    for filename in del_list:
+        del articles[filename]
 
 def make_summaries(download_dir:str, preferences:list, query_llm:callable = query_mistral) -> dict:
     '''

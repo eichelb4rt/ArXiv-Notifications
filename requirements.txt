@@ -1,6 +1,7 @@
-pymupdf4llm
+feedparser
 pymupdf
-pylatex
-pylatexenc
+pymupdf4llm
+requests
+python-dotenv
 mistralai
 tqdm

@@ -167,6 +167,7 @@ def make_summaries(download_dir:str, preferences:list, query_llm:callable = quer
         filepath = os.path.join(download_dir, f'{filename}')
         doc = pymupdf.open(filepath)
         md_text = pymupdf4llm.to_markdown(filepath, pages = range(min(max_pages, len(doc))), show_progress= False)
+        md_text = md_text.encode("utf-8", "replace").decode("utf8")
         outps[filename] = query_llm(query + md_text)
     return outps
 

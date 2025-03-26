@@ -16,18 +16,24 @@ pip install -r requirements.txt
 
 ## Configuration
 
+You can set everything you need in the `config.json` and `last_request.json` files:
 
+#### config.json
 
-You can set everything you need in the `config.json` file:
 - `keywords`: Keywords to search on ArXiV. The lists represent a disjunktive normal form (DNF). That is, the lists are concatenated with OR, the entries of each list with AND.
 - `preferences`: Your personal preferences for creating the summaries. This will be added to the LLM prompt.
 - `emails`: To whom the emails will be sent.
-- `last_date`: Start date for search (up to today, format YYYY-MM-DD)
+- `buffer_days` : number of last days for which we store scraped results (to avoid uncovered time periods)
 - `smtp_*`: SMTP stuff for sending the mail (see [here](https://realpython.com/python-send-email/) for an example) 
 - `download_dir`: Where papers are downloaded internally
 - `summary_dir`: Where summaries are saved
 - `max_results`: Maximum number of papers per category
 - `max_pages`: Maximum number of pages for LLM to read
+
+#### last_request.json
+
+- `last_date` : here you can set the earliest date that needs to be considered by the search
+- `request_buffer` : only used internally to avoid uncovered time periods
 
 ## Scedule running once a day
 On Windows, follow the instructions [here](https://mikenguyen.netlify.app/post/task-scheduler-with-python-and-anaconda-environment/) using the `run_updater.bat` file.

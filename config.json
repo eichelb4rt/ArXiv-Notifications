@@ -10,7 +10,7 @@
 		"recepient1@email.com",
 		"recepient2@email.com"
 	],
-	"last_date": "2024-11-01",
+	"buffer_days": 2,
 	"smtp_server": "smtp.provider.com",
 	"smtp_port": 20,
 	"smtp_login": "login@provider.com",

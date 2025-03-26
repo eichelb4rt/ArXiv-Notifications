@@ -1,5 +1,5 @@
 # general
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import os
 import json
 from tqdm import tqdm
@@ -64,7 +64,7 @@ def query_mistral(query:str) -> str:
     outp = chat_response.choices[0].message.content
     return outp
 
-def query_arxiv(keywords : list, last_date : str, max_results : int) -> dict:
+def query_arxiv(keywords : list, last_date : str, max_results : int, request_buffer : list) -> dict:
     '''
     First step of pipeline: Search for new papers on ArXiV.
 
@@ -72,11 +72,12 @@ def query_arxiv(keywords : list, last_date : str, max_results : int) -> dict:
         keywords... List of strings representing keywords of interest
         last_date... start date for search
         max_results... maximum results for each class (will keep only the newest ones)
+        request_buffer... list of lists with article titles that were used in the past
 
     @Returns:
         dictionary with key = paper name, value = details to paper
     '''
-    start_date = date.fromisoformat(last_date)
+    start_date = date.fromisoformat(last_date) - timedelta(days = len(request_buffer))
     kw_query = '%28'
     for kws in keywords:
         kw_str = '%28'
@@ -103,17 +104,24 @@ def query_arxiv(keywords : list, last_date : str, max_results : int) -> dict:
         if len(feed.entries) > 0:
             for i, article in enumerate(feed.entries):
                 if(article['updated_parsed'] >= start_date.timetuple()):
-                    article_info = {
-                        'title' : article['title'].replace('\n', ''),
-                        'date' : article['updated_parsed'],
-                        'authors' : [author['name'] for author in article['authors']],
-                        'link' : article['link'],
-                        'abstract' : article['summary'].replace('\n', '')
-                    }
-                    id = article_info['title'].replace(' ', '_').replace(':', '_').replace('-', '_').replace('__', '_').replace('___', '_').replace('?', '').replace('!', '').lower()
-                    if id not in articles:
-                        counter += 1
-                    articles[id] = article_info
+                    # title must not be in buffer
+                    id = article['title'].replace('\n', '').replace(' ', '_').replace(':', '_').replace('-', '_').replace('__', '_').replace('___', '_').replace('?', '').replace('!', '').lower()
+                    valid = True
+                    for req in request_buffer:
+                        if id in req:
+                            valid = False
+                            break
+                    if valid:
+                        article_info = {
+                            'title' : article['title'].replace('\n', ''),
+                            'date' : article['updated_parsed'],
+                            'authors' : [author['name'] for author in article['authors']],
+                            'link' : article['link'],
+                            'abstract' : article['summary'].replace('\n', '')
+                        }
+                        if id not in articles:
+                            counter += 1
+                        articles[id] = article_info
     return articles
 
 def download_articles(articles: dict, download_dir:str):
@@ -195,7 +203,6 @@ def create_summary_pdf(articles:dict, summaries:dict, keywords:list, summary_dir
     replace_dict = {
         '𝜖' : 'epsilon'
     }
-    datestr = "{:%B %d, %Y}".format(datetime.now())
     
     doc = Document()
     doc.packages.append(Package('hyperref'))
@@ -303,7 +310,7 @@ if __name__ == '__main__':
         config = json.load(f)
     keywords = config['keywords']
     preferences = config['preferences']
-    last_date = config['last_date']
+    buffer_days = config['buffer_days']
     emails = config['emails']
     smtp_server = config['smtp_server']
     smtp_port = config['smtp_port']
@@ -313,6 +320,13 @@ if __name__ == '__main__':
     summary_dir = os.path.join(cwd, config['summary_dir'])
     max_results = config['max_results']
     max_pages = config['max_pages']
+
+    ###################################
+    # read from last request file
+    with open(os.path.join(cwd, 'last_request.json')) as f:
+        request_dict = json.load(f)
+    last_date = request_dict['last_date'] # datestring yyyy-mm-dd
+    request_buffer = request_dict['request_buffer'] # list of lists
     ###################################
 
 
@@ -322,7 +336,7 @@ if __name__ == '__main__':
         os.makedirs(summary_dir)
 
     print('Scraping ArXiV...')
-    articles = query_arxiv(keywords, last_date, max_results)
+    articles = query_arxiv(keywords, last_date, max_results, request_buffer)
     print('done.')
     timestamp = datetime.now()
 
@@ -364,8 +378,12 @@ if __name__ == '__main__':
     else:
         print('No new articles found.')
 
-    print('Updating config...')
-    config['last_date'] = f'{timestamp:%Y-%m-%d}'
-    with open(os.path.join(cwd, 'config.json'),'w') as outfile:
-        json.dump(config, outfile, indent = '\t')
+    print('Updating last request...')
+    request_dict['last_date'] = f'{timestamp:%Y-%m-%d}'
+    request_buffer = [[id for id in articles]] + request_buffer
+    request_buffer = request_buffer[:buffer_days]
+
+    request_dict['request_buffer'] = request_buffer
+    with open(os.path.join(cwd, 'last_request.json'),'w') as outfile:
+        json.dump(request_dict, outfile, indent = '\t')
     print('done.')

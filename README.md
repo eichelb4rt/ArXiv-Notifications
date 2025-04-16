@@ -22,7 +22,7 @@ You can edit your configuration in `config.json`.
 
 - `keywords`: Keywords to search on ArXiV. The lists represent a disjunktive normal form (DNF). That is, the lists are concatenated with OR, the entries of each list with AND.
 - `preferences`: Your personal preferences for creating the summaries. This will be added to the LLM prompt.
-- `last_date`: Start date for search (up to today, format YYYY-MM-DD)
+- `buffer_days` : number of last days for which we store scraped results (to avoid uncovered time periods)
 - `download_dir`: Where papers are downloaded internally
 - `max_results`: Maximum number of papers per category. Keep it mind that a standard telegram bot can only send 20 messages per minute.
 - `max_pages`: Maximum number of pages for LLM to read

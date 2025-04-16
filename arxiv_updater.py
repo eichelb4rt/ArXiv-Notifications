@@ -2,7 +2,7 @@ import json
 import os
 import urllib.parse
 import urllib.request
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any, Callable
 
 import feedparser
@@ -55,8 +55,7 @@ def query_mistral(query: str) -> str:
     outp = chat_response.choices[0].message.content
     return outp
 
-
-def query_arxiv(keywords: list[str], last_date: str, max_results: int) -> dict[str, ArticleInfo]:
+def query_arxiv(keywords : list, last_date : str, max_results : int, request_buffer : list) -> dict:
     '''
     First step of pipeline: Search for new papers on ArXiV.
 
@@ -64,11 +63,12 @@ def query_arxiv(keywords: list[str], last_date: str, max_results: int) -> dict[s
         keywords... List of strings representing keywords of interest
         last_date... start date for search
         max_results... maximum results for each class (will keep only the newest ones)
+        request_buffer... list of lists with article titles that were used in the past
 
     @Returns:
         dictionary with key = paper name, value = details to paper
     '''
-    start_date = date.fromisoformat(last_date)
+    start_date = date.fromisoformat(last_date) - timedelta(days = len(request_buffer))
     kw_query = '%28'
     for kws in keywords:
         kw_str = '%28'
@@ -92,16 +92,23 @@ def query_arxiv(keywords: list[str], last_date: str, max_results: int) -> dict[s
         feed = feedparser.parse(response)
         if len(feed.entries) > 0:
             for i, article in enumerate(feed.entries):
-                if (article['updated_parsed'] >= start_date.timetuple()):
-                    article_info = {
-                        'title': article['title'].replace('\n', ''),
-                        'date': article['updated_parsed'],
-                        'authors': [author['name'] for author in article['authors']],
-                        'link': article['link'],
-                        'abstract': article['summary'].replace('\n', '')
-                    }
-                    article_id = article_info['title'].replace(' ', '_').replace(':', '_').replace('-', '_').replace('__', '_').replace('___', '_').replace('?', '').replace('!', '').lower()
-                    articles[article_id] = article_info
+                if(article['updated_parsed'] >= start_date.timetuple()):
+                    # title must not be in buffer
+                    article_id = article['title'].replace('\n', '').replace(' ', '_').replace(':', '_').replace('-', '_').replace('__', '_').replace('___', '_').replace('?', '').replace('!', '').lower()
+                    valid = True
+                    for req in request_buffer:
+                        if article_id in req:
+                            valid = False
+                            break
+                    if valid:
+                        article_info = {
+                            'title' : article['title'].replace('\n', ''),
+                            'date' : article['updated_parsed'],
+                            'authors' : [author['name'] for author in article['authors']],
+                            'link' : article['link'],
+                            'abstract' : article['summary'].replace('\n', '')
+                        }
+                        articles[article_id] = article_info
     return articles
 
 
@@ -155,8 +162,7 @@ def make_summaries(download_dir: str, preferences: list[str], max_pages: int, qu
     for filename in tqdm(os.listdir(download_dir)):
         filepath = os.path.join(download_dir, f'{filename}')
         doc = pymupdf.open(filepath)
-        md_text = pymupdf4llm.to_markdown(filepath, pages=range(min(max_pages, len(doc))), show_progress=False).encode("utf-8", "replace").decode("utf8")
-        print(query + md_text)
+        md_text = pymupdf4llm.to_markdown(filepath, pages = range(min(max_pages, len(doc))), show_progress= False).encode("utf-8", "replace").decode("utf8")
         summaries[filename] = query_llm(query + md_text)
     return summaries
 
@@ -219,18 +225,23 @@ def main():
         config = json.load(f)
     keywords = config['keywords']
     preferences = config['preferences']
-    last_date = config['last_date']
     download_dir = os.path.join(cwd, config['download_dir'])
     max_results = config['max_results']
     max_pages = config['max_pages']
+    buffer_days = config['buffer_days']
     chat_id = SECRETS["TELEGRAM_CHAT_ID"]
-    ###################################
+
+    # read from last request file
+    with open(os.path.join(cwd, 'last_request.json')) as f:
+        request_dict = json.load(f)
+    last_date = request_dict['last_date'] # datestring yyyy-mm-dd
+    request_buffer = request_dict['request_buffer'] # list of lists
 
     if not os.path.exists(download_dir):
         os.makedirs(download_dir)
 
     print('Scraping ArXiV...')
-    articles = query_arxiv(keywords, last_date, max_results)
+    articles = query_arxiv(keywords, last_date, max_results, request_buffer)
     print('done.')
     timestamp = datetime.now()
     
@@ -270,6 +281,14 @@ def main():
     config['last_date'] = f'{timestamp:%Y-%m-%d}'
     with open(os.path.join(cwd, 'config.json'), 'w') as outfile:
         json.dump(config, outfile, indent='\t')
+    print('Updating last request...')
+    request_dict['last_date'] = f'{timestamp:%Y-%m-%d}'
+    request_buffer = [[id for id in articles]] + request_buffer
+    request_buffer = request_buffer[:buffer_days]
+
+    request_dict['request_buffer'] = request_buffer
+    with open(os.path.join(cwd, 'last_request.json'),'w') as outfile:
+        json.dump(request_dict, outfile, indent = '\t')
     print('done.')
 
 

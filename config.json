@@ -11,7 +11,7 @@
 	"preferences": [
 		"Interested in algorithms rather than applications"
 	],
-	"last_date": "2025-02-26",
+	"buffer_days": 2,
 	"download_dir": "papers",
 	"max_results": 19,
 	"max_pages": 3
